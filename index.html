@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Zig in the browser</title>
+    <style>
+      * {
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.0.4/pixi.min.js"></script>
+    <script type="text/javascript">
+      let type = "WebGL";
+      if (!PIXI.utils.isWebGLSupported()) {
+        type = "canvas";
+      }
+
+      let app = new PIXI.Application({ width: 256, height: 256 });
+
+      //Add the canvas that Pixi automatically created for you to the HTML document
+      document.body.appendChild(app.view);
+      app.renderer.autoDensity = true;
+      app.renderer.view.style.position = "absolute";
+      app.renderer.view.style.display = "block";
+      app.renderer.resize(window.innerWidth, window.innerHeight);
+
+      const assets = {
+        idle: {
+          path:
+            "assets/npc_bureaucrat_arms_02_glasses_none_hair_02_legs_02_necklace_none_tie_02_torso_02_x1_idle1_png_1354833004.png",
+          width: 97,
+          height: 91,
+          count: 57,
+          cols: 10,
+          animationSpeed: 0.1
+        },
+        walk: {
+          path:
+            "assets/npc_bureaucrat_arms_02_glasses_none_hair_02_legs_02_necklace_none_tie_02_torso_02_x1_walk1_png_1354832999.png",
+          width: 97,
+          height: 91,
+          cols: 8,
+          count: 8 * 3,
+          animationSpeed: 0.6
+        }
+      };
+
+      PIXI.Loader.shared
+        .add(Object.values(assets).map(a => a.path))
+        .load(setup);
+
+      function loadAnimatedSprite({
+        path,
+        width,
+        height,
+        cols,
+        count,
+        animationSpeed
+      }) {
+        let textureArray = [];
+        let baseTexture = PIXI.Texture.from(path);
+        for (let i = 0; i < count; i++) {
+          let rectangle = new PIXI.Rectangle(
+            (i % cols) * width,
+            Math.floor(i / cols) * height,
+            width,
+            height
+          );
+          let frame = new PIXI.Texture(baseTexture, rectangle);
+          textureArray.push(frame);
+        }
+        const sprite = new PIXI.AnimatedSprite(textureArray);
+        sprite.animationSpeed = animationSpeed;
+        sprite.anchor.x = 0.5;
+        return sprite;
+      }
+
+      let state = play,
+        player = {
+          x: 300,
+          y: 300,
+          vx: 0,
+          vy: 0,
+          facing: 1
+        },
+        playerSprite,
+        sprites;
+
+      const keys = {
+        a: 65,
+        d: 68,
+        space: 32
+      };
+
+      let left = keyboard(keys.a),
+        right = keyboard(keys.d),
+        jump = keyboard(keys.space);
+
+      function setup() {
+        sprites = {
+          idle: loadAnimatedSprite(assets.idle),
+          walkSlow: loadAnimatedSprite(assets.walk)
+        };
+        app.ticker.add(delta => gameLoop(delta));
+      }
+
+      function gameLoop(delta) {
+        state(delta);
+      }
+
+      function play(delta) {
+        player.x += player.vx;
+        player.y += player.vy;
+
+        player.y = Math.min(500, player.y);
+
+        player.vy = player.vy + 0.4 * delta;
+
+        const desiredSprite = player.vx === 0 ? sprites.idle : sprites.walkSlow;
+        if (
+          playerSprite == null ||
+          playerSprite.texture.baseTexture.uid !=
+            desiredSprite.texture.baseTexture.uid
+        ) {
+          if (playerSprite !== null) {
+            app.stage.removeChild(playerSprite);
+          }
+          playerSprite = desiredSprite;
+          app.stage.addChild(playerSprite);
+          playerSprite.play();
+        }
+
+        playerSprite.scale.x = player.facing;
+        playerSprite.x = player.x;
+        playerSprite.y = player.y;
+      }
+
+      left.press = () => {
+        player.vx = -5;
+        player.facing = -1;
+      };
+      left.release = () => {
+        if (player.vx < 0) {
+          player.vx = 0;
+        }
+      };
+      right.press = () => {
+        player.vx = 5;
+        player.facing = 1;
+      };
+      right.release = () => {
+        if (player.vx > 0) {
+          player.vx = 0;
+        }
+      };
+      jump.press = () => {
+        player.vy = -10;
+      };
+
+      function keyboard(keyCode) {
+        var key = {};
+        key.code = keyCode;
+        key.isDown = false;
+        key.isUp = true;
+        key.press = undefined;
+        key.release = undefined;
+        //The `downHandler`
+        key.downHandler = function(event) {
+          if (event.keyCode === key.code) {
+            if (key.isUp && key.press) key.press();
+            key.isDown = true;
+            key.isUp = false;
+          }
+          event.preventDefault();
+        };
+        //The `upHandler`
+        key.upHandler = function(event) {
+          if (event.keyCode === key.code) {
+            if (key.isDown && key.release) key.release();
+            key.isDown = false;
+            key.isUp = true;
+          }
+          event.preventDefault();
+        };
+        //Attach event listeners
+        window.addEventListener("keydown", key.downHandler.bind(key), false);
+        window.addEventListener("keyup", key.upHandler.bind(key), false);
+        return key;
+      }
+      const env = {};
+      fetch("lib/main.wasm")
+        .then(response => response.arrayBuffer())
+        .then(bytes => WebAssembly.instantiate(bytes, { env }))
+        .then(result => {
+          console.log(result.instance.exports.main());
+        });
+    </script>
+  </body>
+</html>
