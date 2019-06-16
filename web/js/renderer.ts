@@ -4,7 +4,8 @@ import {
   Rectangle,
   AnimatedSprite,
   Texture,
-  Loader
+  Loader,
+  Sprite
 } from "pixi.js";
 import { ZigExports } from "./index";
 
@@ -12,7 +13,12 @@ export function createRenderer() {
   const activeKeys: { [keyCode: number]: boolean } = {};
   const app = new Application();
   let exports: ZigExports = null;
-  const registeredSprites: { path: string; sprite: AnimatedSprite }[] = [];
+
+  // keeps track of path strings so assets can be referenced by number
+  const registeredAssets: string[] = [];
+
+  // keeps track of created sprites so they can be referenced by number
+  const registeredSprites: Array<Sprite | AnimatedSprite> = [];
 
   function getString(ptr: number, len: number) {
     const slice = exports.memory.buffer.slice(ptr, ptr + len);
@@ -45,25 +51,35 @@ export function createRenderer() {
       document.addEventListener("keydown", handleKey(exports.onKey, true));
       document.addEventListener("keyup", handleKey(exports.onKey, false));
 
-      console.log(exports.init());
+      exports.init();
     },
 
     log(msg_ptr: number, msg_len: number) {
       console.log(getString(msg_ptr, msg_len));
     },
 
-    registerSprite(
-      path_ptr: number,
-      path_len: number,
+    addAsset(ptr: number, len: number): number {
+      const path = getString(ptr, len);
+      const assetId = registeredAssets.push(path) - 1;
+      Loader.shared.add(path);
+      return assetId;
+    },
+
+    loadAssets() {
+      Loader.shared.load(exports.loadAssetsCallback);
+    },
+
+    registerAnimatedSprite(
+      assetId: number,
       width: number,
       height: number,
       cols: number,
       count: number,
       animationSpeed: number
     ): number {
-      const path = getString(path_ptr, path_len);
       let textureArray = [];
-      let baseTexture = BaseTexture.from(path);
+      let baseTexture =
+        Loader.shared.resources[registeredAssets[assetId]].texture.baseTexture;
       for (let i = 0; i < count; i++) {
         let rectangle = new Rectangle(
           (i % cols) * width,
@@ -78,13 +94,15 @@ export function createRenderer() {
       sprite.animationSpeed = animationSpeed;
       sprite.anchor.x = 0.5;
 
-      return registeredSprites.push({ path, sprite }) - 1;
+      return registeredSprites.push(sprite) - 1;
     },
 
-    loadRegisteredSprites() {
-      Loader.shared
-        .add(registeredSprites.map(a => a.path))
-        .load(() => exports.spritesLoaded());
+    registerSprite(assetId: number, width: number, height: number): number {
+      const sprite = new Sprite(
+        Loader.shared.resources[registeredAssets[assetId]].texture
+      );
+
+      return registeredSprites.push(sprite) - 1;
     },
 
     startGameLoop() {
@@ -92,20 +110,36 @@ export function createRenderer() {
     },
 
     addToScene(spriteId: number) {
-      app.stage.addChild(registeredSprites[spriteId].sprite);
-      registeredSprites[spriteId].sprite.play();
-      console.log("added", registeredSprites[spriteId]);
+      app.stage.addChild(registeredSprites[spriteId]);
     },
 
     removeFromScene(spriteId: number) {
-      registeredSprites[spriteId].sprite.stop();
-      app.stage.removeChild(registeredSprites[spriteId].sprite);
-      console.log("removed", registeredSprites[spriteId]);
+      app.stage.removeChild(registeredSprites[spriteId]);
     },
 
-    updateSprite(spriteId: number, scaleX: number, x: number, y: number) {
-      const sprite = registeredSprites[spriteId].sprite;
+    startAnimation(spriteId: number) {
+      (registeredSprites[spriteId] as AnimatedSprite).play();
+    },
+
+    stopAnimation(spriteId: number) {
+      (registeredSprites[spriteId] as AnimatedSprite).stop();
+    },
+
+    updateSpriteXY(spriteId: number, x: number, y: number) {
+      const sprite = registeredSprites[spriteId];
+      sprite.x = x;
+      sprite.y = y;
+    },
+    updateSpriteXYScaleXY(
+      spriteId: number,
+      x: number,
+      y: number,
+      scaleX: number,
+      scaleY: number
+    ) {
+      const sprite = registeredSprites[spriteId];
       sprite.scale.x = scaleX;
+      sprite.scale.y = scaleY;
       sprite.x = x;
       sprite.y = y;
     }
