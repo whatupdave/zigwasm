@@ -1,6 +1,5 @@
 import {
   Application,
-  BaseTexture,
   Rectangle,
   AnimatedSprite,
   Texture,
@@ -8,6 +7,14 @@ import {
   Sprite
 } from "pixi.js";
 import { ZigExports } from "./index";
+
+const pinkRGBA = [0xff, 0x69, 0xb4, 0xff];
+const pinkDot = Texture.fromBuffer(
+  Uint8Array.from(pinkRGBA.concat(pinkRGBA, pinkRGBA, pinkRGBA)),
+  2,
+  2
+);
+const pinkDotSprite = new Sprite(pinkDot);
 
 export function createRenderer() {
   const activeKeys: { [keyCode: number]: boolean } = {};
@@ -93,19 +100,25 @@ export function createRenderer() {
       const sprite = new AnimatedSprite(textureArray);
       sprite.animationSpeed = animationSpeed;
       sprite.anchor.x = 0.5;
+      sprite.anchor.y = 0.5;
 
       return registeredSprites.push(sprite) - 1;
     },
 
-    registerSprite(assetId: number, width: number, height: number): number {
+    registerSprite(assetId: number): number {
       const sprite = new Sprite(
         Loader.shared.resources[registeredAssets[assetId]].texture
       );
+      sprite.anchor.x = 0.5;
+      sprite.anchor.y = 0.5;
 
       return registeredSprites.push(sprite) - 1;
     },
 
     startGameLoop() {
+      app.stage.addChild(pinkDotSprite);
+      pinkDotSprite.x = 50;
+      pinkDotSprite.y = 50;
       app.ticker.add(delta => exports.tick(delta));
     },
 
@@ -124,7 +137,10 @@ export function createRenderer() {
     stopAnimation(spriteId: number) {
       (registeredSprites[spriteId] as AnimatedSprite).stop();
     },
-
+    updateSpriteTint(spriteId: number, val: number) {
+      console.log("tint", spriteId, val.toString(16));
+      registeredSprites[spriteId].tint = val;
+    },
     updateSpriteXY(spriteId: number, x: number, y: number) {
       const sprite = registeredSprites[spriteId];
       sprite.x = x;
