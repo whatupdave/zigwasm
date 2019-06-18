@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "alwaysStrict": true,
-    "noImplicitAny": true,
-    "target": "es6",
-    "moduleResolution": "node"
-  }
-}

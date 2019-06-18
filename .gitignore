@@ -1,6 +1,0 @@
-lib
-zig-cache
-node_modules
-web/dist
-web/.cache
-web/yarn-error.log
