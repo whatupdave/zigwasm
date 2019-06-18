@@ -12,7 +12,8 @@ zig build install --prefix .
 (
   cd web
   rm -rf dist
-  yarn build --out-dir $scratch
+  yarn build --out-dir $scratch --public-url /zigwasm
 )
 
-git checkout gh_pages
+git checkout gh-pages
+rsync -av $scratch/ .
