@@ -2,6 +2,8 @@
 
 Experimenting with zig web game development.
 
+Check out its majesty: https://whatupdave.github.io/zigwasm/
+
 # Run
 
 In one tab run zig compiler on watch:
