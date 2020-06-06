@@ -10,8 +10,12 @@ pub fn build(b: *Builder) void {
     exe.linkSystemLibrary("sdl2");
 
     if (web) {
-        exe.setTarget(builtin.Arch.wasm32, .freestanding, .none);
+        exe.setTarget(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .freestanding
+        });
     }
+    
 
     b.default_step.dependOn(&exe.step);
 
